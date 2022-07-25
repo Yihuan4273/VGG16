@@ -1,0 +1,120 @@
+import os
+import time
+import glob
+import numpy as np
+import tensorflow as tf
+from keras.utils import np_utils
+import matplotlib.pyplot as plt
+from keras.datasets import mnist
+from keras.utils import np_utils
+from skimage import io,transform
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten,Conv2D,MaxPooling2D,BatchNormalization,MaxPool2D
+
+#读取数据
+path1='F:/FH_Picture/Train/'
+path2='F:/FH_Picture/Test/'
+#将所有的图片resize成100*100
+w=100
+h=100
+c=1
+
+def read_img(path):
+    cate=[path+x for x in os.listdir(path) if os.path.isdir(path+x)]
+    cate.sort()
+    imgs=[]
+    labels=[]
+    for idx,folder in enumerate(cate):
+        for im in glob.glob(folder+'/*.jpg'):
+            img=io.imread(im)
+            img=transform.resize(img,(w,h))
+            imgs.append(img)
+            labels.append(idx)
+    return np.asarray(imgs,np.float32),np.asarray(labels,np.int32)
+
+x_Train,y_Train=read_img(path1)#训练集的数据集
+
+x_Test,y_Test=read_img(path2)#测试集的数据集
+
+
+from keras.models import Sequential
+from keras.layers import Dense,Dropout,Flatten,Conv2D,MaxPooling2D,LSTM,GRU,SimpleRNN,TimeDistributed,ConvLSTM2D
+
+model=Sequential()
+
+model.add(Conv2D(filters=36,
+            kernel_size=3,
+            strides=1,
+            padding='same',
+            input_shape=(100,100,1),
+            activation='relu'))  # 1st convolutional layer
+
+model.add(BatchNormalization())
+          
+model.add(MaxPool2D(pool_size=3, strides=2))
+
+model.add(Conv2D(filters=256,
+            kernel_size=3,
+            padding='same',
+            activation='relu'))# 2nd convolutional layer
+model.add(BatchNormalization())
+model.add(MaxPool2D(pool_size=3, strides=2))
+model.add(Conv2D(filters=384,
+            kernel_size=3,
+            padding='same',
+            activation='relu'))# 3rd convolutional layer
+model.add(Conv2D(filters=384,
+            kernel_size=3,
+            padding='same',
+            activation='relu'))# 4th convolutional layer
+model.add(Conv2D(filters=256,
+            kernel_size=3,
+            padding='same',
+            activation='relu'))# 5th convolutional layer
+model.add(BatchNormalization())
+model.add(MaxPool2D(pool_size=3, strides=2))
+model.add(Flatten())
+model.add(Dense(units=4096, activation='relu'))
+model.add(Dense(units=4096, activation='relu'))
+model.add(Dropout(rate=0.5))
+model.add(Dense(units=11, activation='softmax'))
+
+print(model.summary())
+
+from tensorflow.keras import Model
+
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.00001, beta_1=0.9, beta_2=0.999, amsgrad=False),
+loss=tf.keras.losses.sparse_categorical_crossentropy,
+metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+
+train_history=model.fit(x_Train, y_Train,batch_size=64,epochs=30, verbose=1,validation_data=(x_Test,y_Test))# verbose=1表示输出进度条
+    
+import matplotlib.pyplot as plt
+def show_train_history(train_history,train,validation):
+    plt.plot(train_history.history[train])
+    plt.plot(train_history.history[validation])
+    plt.title('Train History')
+    plt.ylabel(train)
+    plt.xlabel('Epoch')
+    plt.legend(['train','validation'],loc='upper left')
+    plt.show()
+    
+
+#画出准确率执行结果
+show_train_history(train_history,'sparse_categorical_accuracy','val_sparse_categorical_accuracy')
+
+#画出误差执行结果
+show_train_history(train_history,'loss','val_loss')
+
+scores=model.evaluate(x_Test,y_Test)
+print(scores[1])
+
+
+predict_x=model.predict(x_Test)  
+classes_x=np.argmax(predict_x,axis=1)
+prediction=classes_x
+np.savetxt('C:\\Users\\YiHuan\\Desktop\\MyAlexNet_y_Test.csv',y_Test,delimiter=',')
+np.savetxt('C:\\Users\\YiHuan\\Desktop\\MyAlexNet_prediction.csv',prediction,delimiter=',')
+# print(prediction.shape)
+
+model.save("C:\\Users\\YiHuan\\Desktop\\MyAlexNet.h5")
